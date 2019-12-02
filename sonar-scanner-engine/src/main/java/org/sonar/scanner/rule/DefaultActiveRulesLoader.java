@@ -19,12 +19,7 @@
  */
 package org.sonar.scanner.rule;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import com.google.protobuf.util.JsonFormat;
 import org.apache.commons.io.IOUtils;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.scanner.bootstrap.ScannerWsClient;
@@ -35,99 +30,164 @@ import org.sonarqube.ws.Rules.Active.Param;
 import org.sonarqube.ws.Rules.ActiveList;
 import org.sonarqube.ws.Rules.Rule;
 import org.sonarqube.ws.Rules.SearchResponse;
-import org.sonarqube.ws.client.GetRequest;
+
+import java.io.*;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 import static org.sonar.api.utils.DateUtils.dateToLong;
 import static org.sonar.api.utils.DateUtils.parseDateTime;
 
 public class DefaultActiveRulesLoader implements ActiveRulesLoader {
-  private static final String RULES_SEARCH_URL = "/api/rules/search.protobuf?f=repo,name,severity,lang,internalKey,templateKey,params,actives,createdAt&activation=true";
+    private static final String RULES_SEARCH_URL = "/api/rules/search.protobuf?f=repo,name,severity,lang,internalKey,templateKey,params,actives,createdAt&activation=true";
 
-  private final ScannerWsClient wsClient;
+    private final ScannerWsClient wsClient;
 
-  public DefaultActiveRulesLoader(ScannerWsClient wsClient) {
-    this.wsClient = wsClient;
-  }
-
-  @Override
-  public List<LoadedActiveRule> load(String qualityProfileKey) {
-    List<LoadedActiveRule> ruleList = new LinkedList<>();
-    int page = 1;
-    int pageSize = 500;
-    int loaded = 0;
-
-    while (true) {
-      GetRequest getRequest = new GetRequest(getUrl(qualityProfileKey, page, pageSize));
-      SearchResponse response = loadFromStream(wsClient.call(getRequest).contentStream());
-      List<LoadedActiveRule> pageRules = readPage(response);
-      ruleList.addAll(pageRules);
-      loaded += response.getPs();
-
-      if (response.getTotal() <= loaded) {
-        break;
-      }
-      page++;
+    public DefaultActiveRulesLoader(ScannerWsClient wsClient) {
+        this.wsClient = wsClient;
     }
 
-    return ruleList;
-  }
 
-  private static String getUrl(String qualityProfileKey, int page, int pageSize) {
-    StringBuilder builder = new StringBuilder(1024);
-    builder.append(RULES_SEARCH_URL);
-    builder.append("&qprofile=").append(ScannerUtils.encodeForUrl(qualityProfileKey));
-    builder.append("&p=").append(page);
-    builder.append("&ps=").append(pageSize);
-    return builder.toString();
-  }
-
-  private static SearchResponse loadFromStream(InputStream is) {
-    try {
-      return SearchResponse.parseFrom(is);
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to load quality profiles", e);
-    } finally {
-      IOUtils.closeQuietly(is);
-    }
-  }
-
-  private static List<LoadedActiveRule> readPage(SearchResponse response) {
-    List<LoadedActiveRule> loadedRules = new LinkedList<>();
-
-    List<Rule> rulesList = response.getRulesList();
-    Map<String, ActiveList> actives = response.getActives().getActives();
-
-    for (Rule r : rulesList) {
-      ActiveList activeList = actives.get(r.getKey());
-      Active active = activeList.getActiveList(0);
-
-      LoadedActiveRule loadedRule = new LoadedActiveRule();
-
-      loadedRule.setRuleKey(RuleKey.parse(r.getKey()));
-      loadedRule.setName(r.getName());
-      loadedRule.setSeverity(active.getSeverity());
-      loadedRule.setCreatedAt(dateToLong(parseDateTime(active.getCreatedAt())));
-      loadedRule.setLanguage(r.getLang());
-      loadedRule.setInternalKey(r.getInternalKey());
-      if (r.hasTemplateKey()) {
-        RuleKey templateRuleKey = RuleKey.parse(r.getTemplateKey());
-        loadedRule.setTemplateRuleKey(templateRuleKey.rule());
-      }
-
-      Map<String, String> params = new HashMap<>();
-
-      for (Rules.Rule.Param param : r.getParams().getParamsList()) {
-        params.put(param.getKey(), param.getDefaultValue());
-      }
-
-      // overrides defaultValue if the key is the same
-      for (Param param : active.getParamsList()) {
-        params.put(param.getKey(), param.getValue());
-      }
-      loadedRule.setParams(params);
-      loadedRules.add(loadedRule);
+    public String readFileContent(String fileName) {
+        File file = new File(fileName);
+        BufferedReader reader = null;
+        StringBuffer sbf = new StringBuffer();
+        try {
+            reader = new BufferedReader(new FileReader(file));
+            String tempStr;
+            while ((tempStr = reader.readLine()) != null) {
+                sbf.append(tempStr);
+            }
+            reader.close();
+            return sbf.toString();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            }
+        }
+        return sbf.toString();
     }
 
-    return loadedRules;
-  }
+    @Override
+    /**
+     * 自定义读取文件规则
+     */
+    public List<LoadedActiveRule> load(String language) {
+        List<LoadedActiveRule> ruleList = new LinkedList<>();
+        try {
+            String json = readFileContent("/Users/lightpan/code/java/json/" + language + ".json");
+            SearchResponse.Builder builder = SearchResponse.getDefaultInstance().toBuilder();
+            JsonFormat.parser().merge(json, builder);
+            SearchResponse response = builder.build();
+            List<LoadedActiveRule> pageRules = readPage(response);
+            ruleList.addAll(pageRules);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return ruleList;
+    }
+
+//  @Override
+//  public List<LoadedActiveRule> load(String qualityProfileKey) {
+//
+//    System.out.println("---------------qualityProfileKey:" + qualityProfileKey);
+//
+//    List<LoadedActiveRule> ruleList = new LinkedList<>();
+//    int page = 1;
+//    int pageSize = 500;
+//    int loaded = 0;
+//
+//    while (true) {
+//      GetRequest getRequest = new GetRequest(getUrl(qualityProfileKey, page, pageSize));
+//      SearchResponse response = loadFromStream(wsClient.call(getRequest).contentStream());
+//
+////      try {
+////        String json = JsonFormat.printer().print(response);
+////        File file =new File("/Users/lightpan/code/java/" + Math.random() + ".json");
+////        Writer out =new FileWriter(file);
+////        out.write(json);
+////        out.close();
+////
+////      } catch (IOException e) {
+////        e.printStackTrace();
+////      }
+//      List<LoadedActiveRule> pageRules = readPage(response);
+//      ruleList.addAll(pageRules);
+//      loaded += response.getPs();
+//
+//      if (response.getTotal() <= loaded) {
+//        break;
+//      }
+//      page++;
+//    }
+//
+//    return ruleList;
+//  }
+
+    private static String getUrl(String qualityProfileKey, int page, int pageSize) {
+        StringBuilder builder = new StringBuilder(1024);
+        builder.append(RULES_SEARCH_URL);
+        builder.append("&qprofile=").append(ScannerUtils.encodeForUrl(qualityProfileKey));
+        builder.append("&p=").append(page);
+        builder.append("&ps=").append(pageSize);
+        return builder.toString();
+    }
+
+    private static SearchResponse loadFromStream(InputStream is) {
+        try {
+            return SearchResponse.parseFrom(is);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to load quality profiles", e);
+        } finally {
+            IOUtils.closeQuietly(is);
+        }
+    }
+
+    private static List<LoadedActiveRule> readPage(SearchResponse response) {
+        List<LoadedActiveRule> loadedRules = new LinkedList<>();
+
+        List<Rule> rulesList = response.getRulesList();
+        Map<String, ActiveList> actives = response.getActives().getActives();
+
+        for (Rule r : rulesList) {
+            ActiveList activeList = actives.get(r.getKey());
+            Active active = activeList.getActiveList(0);
+
+            LoadedActiveRule loadedRule = new LoadedActiveRule();
+
+            loadedRule.setRuleKey(RuleKey.parse(r.getKey()));
+            loadedRule.setName(r.getName());
+            loadedRule.setSeverity(active.getSeverity());
+            loadedRule.setCreatedAt(dateToLong(parseDateTime(active.getCreatedAt())));
+            loadedRule.setLanguage(r.getLang());
+            loadedRule.setInternalKey(r.getInternalKey());
+            if (r.hasTemplateKey()) {
+                RuleKey templateRuleKey = RuleKey.parse(r.getTemplateKey());
+                loadedRule.setTemplateRuleKey(templateRuleKey.rule());
+            }
+
+            Map<String, String> params = new HashMap<>();
+
+            for (Rules.Rule.Param param : r.getParams().getParamsList()) {
+                params.put(param.getKey(), param.getDefaultValue());
+            }
+
+            // overrides defaultValue if the key is the same
+            for (Param param : active.getParamsList()) {
+                params.put(param.getKey(), param.getValue());
+            }
+            loadedRule.setParams(params);
+            loadedRules.add(loadedRule);
+        }
+
+        return loadedRules;
+    }
 }

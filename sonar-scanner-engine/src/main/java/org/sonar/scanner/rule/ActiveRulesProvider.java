@@ -19,11 +19,6 @@
  */
 package org.sonar.scanner.rule;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.picocontainer.injectors.ProviderAdapter;
 import org.sonar.api.batch.rule.ActiveRules;
 import org.sonar.api.batch.rule.internal.ActiveRulesBuilder;
@@ -32,6 +27,8 @@ import org.sonar.api.rule.RuleKey;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.log.Profiler;
+
+import java.util.*;
 
 /**
  * Loads the rules that are activated on the Quality profiles
@@ -53,14 +50,31 @@ public class ActiveRulesProvider extends ProviderAdapter {
 
   private static ActiveRules load(ActiveRulesLoader loader, ModuleQProfiles qProfiles) {
 
-    Collection<String> qProfileKeys = getKeys(qProfiles);
+//    Collection<String> qProfileKeys = getKeys(qProfiles);
+    Collection<String> qProfileLanguages = getLanguage(qProfiles);
     Map<RuleKey, LoadedActiveRule> loadedRulesByKey = new HashMap<>();
-
-    for (String qProfileKey : qProfileKeys) {
+//    for (String qProfileKey : qProfileKeys) {
+    for (String language : qProfileLanguages) {
       Collection<LoadedActiveRule> qProfileRules;
-      qProfileRules = load(loader, qProfileKey);
+//      qProfileRules = load(loader, qProfileKey);
+      qProfileRules =loadCustom(loader, language);
 
       for (LoadedActiveRule r : qProfileRules) {
+
+//        if (language.equals("php")) {
+//          System.out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+//          System.out.println("ruleKey:" + r.getRuleKey().toString());
+//          System.out.println("severity:" + r.getSeverity());
+//          System.out.println("name:" + r.getName());
+//          System.out.println("language:" + r.getLanguage());
+//          System.out.println("params:" + r.getParams());
+//          System.out.println("createdAt:" + r.getCreatedAt());
+//          System.out.println("templateRuleKey:" + r.getTemplateRuleKey());
+//          System.out.println("internalKey:" + r.getInternalKey());
+//          System.out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+//          System.exit(0);
+//        }
+
         if (!loadedRulesByKey.containsKey(r.getRuleKey())) {
           loadedRulesByKey.put(r.getRuleKey(), r);
         }
@@ -92,6 +106,20 @@ public class ActiveRulesProvider extends ProviderAdapter {
       newActiveRule.activate();
     }
     return builder.build();
+  }
+
+  private static List<LoadedActiveRule> loadCustom(ActiveRulesLoader loader, String language) {
+    return loader.load(language);
+  }
+
+  private static Collection<String> getLanguage(ModuleQProfiles qProfiles) {
+    List<String> languages = new ArrayList<>(qProfiles.findAll().size());
+
+    for (QProfile qp : qProfiles.findAll()) {
+      languages.add(qp.getLanguage());
+    }
+
+    return languages;
   }
 
   private static List<LoadedActiveRule> load(ActiveRulesLoader loader, String qProfileKey) {
