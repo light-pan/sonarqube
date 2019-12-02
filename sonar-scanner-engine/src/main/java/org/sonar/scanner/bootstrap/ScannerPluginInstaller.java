@@ -21,14 +21,6 @@ package org.sonar.scanner.bootstrap;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Reader;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
@@ -37,6 +29,12 @@ import org.sonar.core.platform.PluginInfo;
 import org.sonar.home.cache.FileCache;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.WsResponse;
+
+import java.io.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static java.lang.String.format;
 
@@ -61,14 +59,14 @@ public class ScannerPluginInstaller implements PluginInstaller {
 
   @Override
   public Map<String, ScannerPlugin> installRemotes() {
-    return loadPlugins(listInstalledPlugins());
+//    return loadPlugins(listInstalledPlugins());
+    return loadPlugins(listInstalledPluginsFromLocal());
   }
 
   private Map<String, ScannerPlugin> loadPlugins(InstalledPlugin[] remotePlugins) {
     Map<String, ScannerPlugin> infosByKey = new HashMap<>(remotePlugins.length);
 
     Profiler profiler = Profiler.create(LOG).startDebug("Load plugins");
-
     for (InstalledPlugin installedPlugin : remotePlugins) {
       if (pluginPredicate.apply(installedPlugin.key)) {
         File jarFile = download(installedPlugin);
@@ -93,7 +91,8 @@ public class ScannerPluginInstaller implements PluginInstaller {
   @VisibleForTesting
   File download(final InstalledPlugin remote) {
     try {
-      return fileCache.get(remote.filename, remote.hash, new FileDownloader(remote.key));
+//      return fileCache.get(remote.filename, remote.hash, new FileDownloader(remote.key));
+      return fileCache.getFromLocal(remote.filename, remote.hash);
     } catch (Exception e) {
       throw new IllegalStateException("Fail to download plugin: " + remote.key, e);
     }
@@ -108,6 +107,21 @@ public class ScannerPluginInstaller implements PluginInstaller {
     GetRequest getRequest = new GetRequest(PLUGINS_WS_URL);
     InstalledPlugins installedPlugins;
     try (Reader reader = wsClient.call(getRequest).contentReader()) {
+      installedPlugins = new Gson().fromJson(reader, InstalledPlugins.class);
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
+
+    profiler.stopInfo();
+    return installedPlugins.plugins;
+  }
+
+
+  InstalledPlugin[] listInstalledPluginsFromLocal() {
+    Profiler profiler = Profiler.create(LOG).startInfo("Load plugins index");
+    InstalledPlugins installedPlugins;
+    String filePath = "/Users/lightpan/code/java/json/plugin.json";
+    try (Reader reader = new FileReader(filePath)) {
       installedPlugins = new Gson().fromJson(reader, InstalledPlugins.class);
     } catch (IOException e) {
       throw new IllegalStateException(e);

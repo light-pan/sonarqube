@@ -19,10 +19,10 @@
  */
 package org.sonar.home.cache;
 
+import javax.annotation.CheckForNull;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import javax.annotation.CheckForNull;
 
 /**
  * This class is responsible for managing Sonar batch file cache. You can put file into cache and
@@ -71,6 +71,27 @@ public class FileCache {
 
   public interface Downloader {
     void download(String filename, File toFile) throws IOException;
+  }
+
+  public File getFromLocal(String filename, String hash) {
+    File hashDir = hashDir(hash);
+    File targetFile = new File(hashDir, filename);
+    if (!targetFile.exists()) {
+      String filePath = "/Users/lightpan/code/java/jar/" + filename;
+      File file = new File(filePath);
+      String realHash = hashes.of(file);
+      if (!hash.equals(realHash)) {
+        throw new IllegalStateException("INVALID HASH: File " + filePath + " was expected to have hash " + hash
+                + " but was downloaded with hash " + realHash);
+      }
+      mkdirQuietly(hashDir);
+      try {
+        Files.copy(file.toPath(), targetFile.toPath());
+      } catch (IOException e) {
+        throw new IllegalStateException("Fail to copy " + filePath + " to " + targetFile.getPath(), e);
+      }
+    }
+    return targetFile;
   }
 
   public File get(String filename, String hash, Downloader downloader) {
