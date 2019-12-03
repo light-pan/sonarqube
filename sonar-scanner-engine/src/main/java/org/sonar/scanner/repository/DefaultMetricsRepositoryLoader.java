@@ -19,15 +19,18 @@
  */
 package org.sonar.scanner.repository;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.util.ArrayList;
-import java.util.List;
+import com.google.gson.Gson;
 import org.sonar.api.measures.Metric;
 import org.sonar.api.measures.Metric.ValueType;
 import org.sonar.scanner.bootstrap.ScannerWsClient;
 import org.sonar.scanner.protocol.GsonHelper;
 import org.sonarqube.ws.client.GetRequest;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DefaultMetricsRepositoryLoader implements MetricsRepositoryLoader {
 
@@ -42,11 +45,30 @@ public class DefaultMetricsRepositoryLoader implements MetricsRepositoryLoader {
   public MetricsRepository load() {
     List<Metric> metrics = new ArrayList<>();
     try {
-      loadFromPaginatedWs(metrics);
+//      loadFromPaginatedWs(metrics);
+      loadFromLocal(metrics);
     } catch (Exception e) {
       throw new IllegalStateException("Unable to load metrics", e);
     }
     return new MetricsRepository(metrics);
+  }
+
+  private void loadFromLocal(List<Metric> metrics){
+    String filePath = "/Users/lightpan/code/java/json/metrics.json";
+    try (Reader reader = new FileReader(filePath)) {
+      WsMetricsResponse response = new Gson().fromJson(reader, WsMetricsResponse.class);
+      for (WsMetric metric : response.metrics) {
+        metrics.add(new Metric.Builder(metric.getKey(), metric.getName(), ValueType.valueOf(metric.getType()))
+                .create()
+                .setDirection(metric.getDirection())
+                .setQualitative(metric.isQualitative())
+                .setUserManaged(metric.isCustom())
+                .setDescription(metric.getDescription())
+                .setId(metric.getId()));
+      }
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   private void loadFromPaginatedWs(List<Metric> metrics) throws IOException {
