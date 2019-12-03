@@ -19,14 +19,14 @@
  */
 package org.sonar.scanner.rule;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
+import com.google.protobuf.util.JsonFormat;
 import org.apache.commons.io.IOUtils;
 import org.sonar.scanner.bootstrap.ScannerWsClient;
 import org.sonarqube.ws.Rules.ListResponse;
 import org.sonarqube.ws.Rules.ListResponse.Rule;
-import org.sonarqube.ws.client.GetRequest;
+
+import java.io.*;
+import java.util.List;
 
 public class DefaultRulesLoader implements RulesLoader {
   private static final String RULES_SEARCH_URL = "/api/rules/list.protobuf";
@@ -39,11 +39,49 @@ public class DefaultRulesLoader implements RulesLoader {
 
   @Override
   public List<Rule> load() {
-    GetRequest getRequest = new GetRequest(RULES_SEARCH_URL);
-    ListResponse list = loadFromStream(wsClient.call(getRequest).contentStream());
+//    GetRequest getRequest = new GetRequest(RULES_SEARCH_URL);
+//    ListResponse list = loadFromStream(wsClient.call(getRequest).contentStream());
+
+    String json = readFileContent("/Users/lightpan/code/java/json/listRules.json");
+    ListResponse list = loadFromLocal(json);
     return list.getRulesList();
   }
 
+  private static ListResponse loadFromLocal(String json) {
+    try {
+      ListResponse.Builder builder = ListResponse.getDefaultInstance().toBuilder();
+      JsonFormat.parser().merge(json, builder);
+      return builder.build();
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to get rules", e);
+    }
+  }
+
+  private String readFileContent(String fileName) {
+    File file = new File(fileName);
+    BufferedReader reader = null;
+    StringBuffer sbf = new StringBuffer();
+    try {
+      reader = new BufferedReader(new FileReader(file));
+      String tempStr;
+      while ((tempStr = reader.readLine()) != null) {
+        sbf.append(tempStr);
+      }
+      reader.close();
+      return sbf.toString();
+    } catch (IOException e) {
+      e.printStackTrace();
+    } finally {
+      if (reader != null) {
+        try {
+          reader.close();
+        } catch (IOException e1) {
+          e1.printStackTrace();
+        }
+      }
+    }
+    return sbf.toString();
+  }
   private static ListResponse loadFromStream(InputStream is) {
     try {
       return ListResponse.parseFrom(is);
