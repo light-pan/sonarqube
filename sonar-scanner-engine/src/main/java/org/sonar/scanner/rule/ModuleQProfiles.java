@@ -46,7 +46,6 @@ public class ModuleQProfiles {
     Map<String, QProfile> map = new HashMap<>(profiles.size());
 
     for (QualityProfile qProfile : profiles) {
-      System.out.println("++++++++++++++"+qProfile.toString());
       map.put(qProfile.getLanguage(),
         new QProfile.Builder()
           .setKey(qProfile.getKey())
