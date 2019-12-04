@@ -19,55 +19,44 @@
  */
 package org.sonar.scanner.repository;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import org.apache.commons.io.IOUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonar.scanner.WsTestUtil;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
+import org.sonar.scanner.bootstrap.GlobalProperties;
+
+import java.io.IOException;
+import java.io.Reader;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class DefaultMetricsRepositoryLoaderTest {
-  private static final String WS_URL = "/api/metrics/search?f=name,description,direction,qualitative,custom&ps=500&p=";
-  private ScannerWsClient wsClient;
+  private GlobalProperties globalProperties;
   private DefaultMetricsRepositoryLoader metricsRepositoryLoader;
 
   @Rule
   public ExpectedException exception = ExpectedException.none();
 
   @Before
-  public void setUp() throws IOException {
-    wsClient = mock(ScannerWsClient.class);
-    WsTestUtil.mockReader(wsClient, WS_URL + "1", new StringReader(IOUtils.toString(this.getClass().getResourceAsStream("DefaultMetricsRepositoryLoaderTest/page1.json"))));
-    WsTestUtil.mockReader(wsClient, WS_URL + "2", new StringReader(IOUtils.toString(this.getClass().getResourceAsStream("DefaultMetricsRepositoryLoaderTest/page2.json"))));
-    metricsRepositoryLoader = new DefaultMetricsRepositoryLoader(wsClient);
+  public void setUp() {
+    globalProperties = mock(GlobalProperties.class);
+    metricsRepositoryLoader = new DefaultMetricsRepositoryLoader(globalProperties);
   }
 
   @Test
   public void test() {
     MetricsRepository metricsRepository = metricsRepositoryLoader.load();
     assertThat(metricsRepository.metrics()).hasSize(3);
-    WsTestUtil.verifyCall(wsClient, WS_URL + "1");
-    WsTestUtil.verifyCall(wsClient, WS_URL + "2");
-    verifyNoMoreInteractions(wsClient);
+    verifyNoMoreInteractions(globalProperties);
   }
 
   @Test
   public void testIOError() throws IOException {
     Reader reader = mock(Reader.class);
     when(reader.read(any(char[].class), anyInt(), anyInt())).thenThrow(new IOException());
-    WsTestUtil.mockReader(wsClient, reader);
     exception.expect(IllegalStateException.class);
     metricsRepositoryLoader.load();
   }
@@ -77,7 +66,6 @@ public class DefaultMetricsRepositoryLoaderTest {
     Reader reader = mock(Reader.class);
     when(reader.read(any(char[].class), anyInt(), anyInt())).thenReturn(-1);
     doThrow(new IOException()).when(reader).close();
-    WsTestUtil.mockReader(wsClient, reader);
     exception.expect(IllegalStateException.class);
     metricsRepositoryLoader.load();
   }

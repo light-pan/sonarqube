@@ -20,24 +20,19 @@
 package org.sonar.scanner.rule;
 
 import com.google.common.collect.ImmutableSortedMap;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Collection;
-import java.util.stream.IntStream;
 import org.junit.Before;
 import org.junit.Test;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.Severity;
-import org.sonar.scanner.WsTestUtil;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
+import org.sonar.scanner.bootstrap.GlobalProperties;
 import org.sonarqube.ws.Rules;
-import org.sonarqube.ws.Rules.Active;
-import org.sonarqube.ws.Rules.ActiveList;
-import org.sonarqube.ws.Rules.Actives;
-import org.sonarqube.ws.Rules.Rule;
-import org.sonarqube.ws.Rules.SearchResponse;
+import org.sonarqube.ws.Rules.*;
 import org.sonarqube.ws.Rules.SearchResponse.Builder;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.Collection;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -53,20 +48,18 @@ public class DefaultActiveRulesLoaderTest {
   private static final String SEVERITY_VALUE = Severity.MINOR;
 
   private DefaultActiveRulesLoader loader;
-  private ScannerWsClient wsClient;
+  private GlobalProperties globalProperties;
 
   @Before
   public void setUp() {
-    wsClient = mock(ScannerWsClient.class);
-    loader = new DefaultActiveRulesLoader(wsClient);
+    globalProperties = mock(GlobalProperties.class);
+    loader = new DefaultActiveRulesLoader(globalProperties);
   }
 
   @Test
-  public void feed_real_response_encode_qp() throws IOException {
+  public void feed_real_response_encode_qp() {
     int total = PAGE_SIZE_1 + PAGE_SIZE_2;
 
-    WsTestUtil.mockStream(wsClient, urlOfPage(1), responseOfSize(PAGE_SIZE_1, total));
-    WsTestUtil.mockStream(wsClient, urlOfPage(2), responseOfSize(PAGE_SIZE_2, total));
 
     Collection<LoadedActiveRule> activeRules = loader.load("c+-test_c+-values-17445");
     assertThat(activeRules).hasSize(total);
@@ -80,15 +73,8 @@ public class DefaultActiveRulesLoaderTest {
       .extracting(LoadedActiveRule::getSeverity)
       .containsExactly(SEVERITY_VALUE);
 
-    WsTestUtil.verifyCall(wsClient, urlOfPage(1));
-    WsTestUtil.verifyCall(wsClient, urlOfPage(2));
 
-    verifyNoMoreInteractions(wsClient);
-  }
-
-  private String urlOfPage(int page) {
-    return "/api/rules/search.protobuf?f=repo,name,severity,lang,internalKey,templateKey,params,actives,createdAt&activation=true&qprofile=c%2B-test_c%2B-values-17445&p=" + page
-      + "&ps=500";
+    verifyNoMoreInteractions(globalProperties);
   }
 
   /**

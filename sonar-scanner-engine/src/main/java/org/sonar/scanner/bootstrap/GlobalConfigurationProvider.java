@@ -19,11 +19,12 @@
  */
 package org.sonar.scanner.bootstrap;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 import org.picocontainer.injectors.ProviderAdapter;
 import org.sonar.api.config.PropertyDefinitions;
 import org.sonar.scanner.repository.settings.SettingsLoader;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class GlobalConfigurationProvider extends ProviderAdapter {
 

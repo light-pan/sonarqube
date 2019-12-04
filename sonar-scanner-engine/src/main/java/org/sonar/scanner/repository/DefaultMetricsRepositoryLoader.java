@@ -22,10 +22,9 @@ package org.sonar.scanner.repository;
 import com.google.gson.Gson;
 import org.sonar.api.measures.Metric;
 import org.sonar.api.measures.Metric.ValueType;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
-import org.sonar.scanner.protocol.GsonHelper;
-import org.sonarqube.ws.client.GetRequest;
+import org.sonar.scanner.bootstrap.GlobalProperties;
 
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
@@ -34,18 +33,16 @@ import java.util.List;
 
 public class DefaultMetricsRepositoryLoader implements MetricsRepositoryLoader {
 
-  private static final String METRICS_SEARCH_URL = "/api/metrics/search?f=name,description,direction,qualitative,custom&ps=500&p=";
-  private ScannerWsClient wsClient;
+  private GlobalProperties globalProperties;
 
-  public DefaultMetricsRepositoryLoader(ScannerWsClient wsClient) {
-    this.wsClient = wsClient;
+  public DefaultMetricsRepositoryLoader(GlobalProperties globalProperties) {
+    this.globalProperties = globalProperties;
   }
 
   @Override
   public MetricsRepository load() {
     List<Metric> metrics = new ArrayList<>();
     try {
-//      loadFromPaginatedWs(metrics);
       loadFromLocal(metrics);
     } catch (Exception e) {
       throw new IllegalStateException("Unable to load metrics", e);
@@ -54,7 +51,7 @@ public class DefaultMetricsRepositoryLoader implements MetricsRepositoryLoader {
   }
 
   private void loadFromLocal(List<Metric> metrics){
-    String filePath = "/Users/lightpan/code/java/json/metrics.json";
+    String filePath = globalProperties.property("sonar.jsonDir") + File.separator + "metrics.json";
     try (Reader reader = new FileReader(filePath)) {
       WsMetricsResponse response = new Gson().fromJson(reader, WsMetricsResponse.class);
       for (WsMetric metric : response.metrics) {
@@ -69,27 +66,6 @@ public class DefaultMetricsRepositoryLoader implements MetricsRepositoryLoader {
     } catch (IOException e) {
       throw new IllegalStateException(e);
     }
-  }
-
-  private void loadFromPaginatedWs(List<Metric> metrics) throws IOException {
-    int page = 1;
-    WsMetricsResponse response;
-    do {
-      GetRequest getRequest = new GetRequest(METRICS_SEARCH_URL + page);
-      try (Reader reader = wsClient.call(getRequest).contentReader()) {
-        response = GsonHelper.create().fromJson(reader, WsMetricsResponse.class);
-        for (WsMetric metric : response.metrics) {
-          metrics.add(new Metric.Builder(metric.getKey(), metric.getName(), ValueType.valueOf(metric.getType()))
-            .create()
-            .setDirection(metric.getDirection())
-            .setQualitative(metric.isQualitative())
-            .setUserManaged(metric.isCustom())
-            .setDescription(metric.getDescription())
-            .setId(metric.getId()));
-        }
-      }
-      page++;
-    } while (response.getP() < (response.getTotal() / response.getPs() + 1));
   }
 
   private static class WsMetric {

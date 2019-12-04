@@ -21,22 +21,20 @@ package org.sonar.scanner.bootstrap;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
-import org.apache.commons.io.FileUtils;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.log.Profiler;
 import org.sonar.core.platform.PluginInfo;
 import org.sonar.home.cache.FileCache;
-import org.sonarqube.ws.client.GetRequest;
-import org.sonarqube.ws.client.WsResponse;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static java.lang.String.format;
 
 /**
  * Downloads the plugins installed on server and stores them in a local user cache
@@ -45,21 +43,19 @@ import static java.lang.String.format;
 public class ScannerPluginInstaller implements PluginInstaller {
 
   private static final Logger LOG = Loggers.get(ScannerPluginInstaller.class);
-  private static final String PLUGINS_WS_URL = "/api/plugins/installed";
 
   private final FileCache fileCache;
   private final ScannerPluginPredicate pluginPredicate;
-  private final ScannerWsClient wsClient;
+  private final GlobalProperties globalProps;
 
-  public ScannerPluginInstaller(ScannerWsClient wsClient, FileCache fileCache, ScannerPluginPredicate pluginPredicate) {
+  public ScannerPluginInstaller(FileCache fileCache, ScannerPluginPredicate pluginPredicate, GlobalProperties globalProps) {
     this.fileCache = fileCache;
     this.pluginPredicate = pluginPredicate;
-    this.wsClient = wsClient;
+    this.globalProps = globalProps;
   }
 
   @Override
   public Map<String, ScannerPlugin> installRemotes() {
-//    return loadPlugins(listInstalledPlugins());
     return loadPlugins(listInstalledPluginsFromLocal());
   }
 
@@ -81,7 +77,6 @@ public class ScannerPluginInstaller implements PluginInstaller {
 
   /**
    * Returns empty on purpose. This method is used only by medium tests.
-   * @see org.sonar.scanner.mediumtest.ScannerMediumTester
    */
   @Override
   public List<Object[]> installLocals() {
@@ -91,36 +86,16 @@ public class ScannerPluginInstaller implements PluginInstaller {
   @VisibleForTesting
   File download(final InstalledPlugin remote) {
     try {
-//      return fileCache.get(remote.filename, remote.hash, new FileDownloader(remote.key));
-      return fileCache.getFromLocal(remote.filename, remote.hash);
+      return fileCache.getFromLocal(remote.filename, remote.hash, globalProps.property("sonar.jarDir"));
     } catch (Exception e) {
       throw new IllegalStateException("Fail to download plugin: " + remote.key, e);
     }
   }
 
-  /**
-   * Gets information about the plugins installed on server (filename, checksum)
-   */
-  @VisibleForTesting
-  InstalledPlugin[] listInstalledPlugins() {
-    Profiler profiler = Profiler.create(LOG).startInfo("Load plugins index");
-    GetRequest getRequest = new GetRequest(PLUGINS_WS_URL);
-    InstalledPlugins installedPlugins;
-    try (Reader reader = wsClient.call(getRequest).contentReader()) {
-      installedPlugins = new Gson().fromJson(reader, InstalledPlugins.class);
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
-
-    profiler.stopInfo();
-    return installedPlugins.plugins;
-  }
-
-
   InstalledPlugin[] listInstalledPluginsFromLocal() {
     Profiler profiler = Profiler.create(LOG).startInfo("Load plugins index");
     InstalledPlugins installedPlugins;
-    String filePath = "/Users/lightpan/code/java/json/plugin.json";
+    String filePath = globalProps.property("sonar.jsonDir") + File.separator + "plugin.json";
     try (Reader reader = new FileReader(filePath)) {
       installedPlugins = new Gson().fromJson(reader, InstalledPlugins.class);
     } catch (IOException e) {
@@ -140,28 +115,5 @@ public class ScannerPluginInstaller implements PluginInstaller {
     String hash;
     String filename;
     long updatedAt;
-  }
-
-  private class FileDownloader implements FileCache.Downloader {
-    private String key;
-
-    FileDownloader(String key) {
-      this.key = key;
-    }
-
-    @Override
-    public void download(String filename, File toFile) throws IOException {
-      String url = format("/deploy/plugins/%s/%s", key, filename);
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Download plugin {} to {}", filename, toFile);
-      } else {
-        LOG.info("Download {}", filename);
-      }
-
-      WsResponse response = wsClient.call(new GetRequest(url));
-      try (InputStream stream = response.contentStream()) {
-        FileUtils.copyInputStreamToFile(stream, toFile);
-      }
-    }
   }
 }

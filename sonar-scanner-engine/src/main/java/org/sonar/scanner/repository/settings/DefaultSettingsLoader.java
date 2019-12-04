@@ -25,15 +25,14 @@ import org.apache.commons.lang.StringEscapeUtils;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.log.Profiler;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
+import org.sonar.scanner.bootstrap.GlobalProperties;
+import org.sonar.scanner.platform.LocalServer;
 import org.sonarqube.ws.Settings.FieldValues.Value;
 import org.sonarqube.ws.Settings.Setting;
 import org.sonarqube.ws.Settings.ValuesWsResponse;
 
 import javax.annotation.Nullable;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -43,11 +42,10 @@ import java.util.stream.Collectors;
 
 public class DefaultSettingsLoader implements SettingsLoader {
 
-    private ScannerWsClient wsClient;
+    private GlobalProperties globalProps;
     private static final Logger LOG = Loggers.get(DefaultSettingsLoader.class);
-
-    public DefaultSettingsLoader(ScannerWsClient wsClient) {
-        this.wsClient = wsClient;
+    public DefaultSettingsLoader(GlobalProperties globalProps) {
+        this.globalProps = globalProps;
     }
 
     @Override
@@ -59,7 +57,7 @@ public class DefaultSettingsLoader implements SettingsLoader {
             profiler.startInfo("Load global settings");
         }
         try  {
-            String json = readFileContent("/Users/lightpan/code/java/json/global.json");
+            String json = LocalServer.readFileContent(globalProps.property("sonar.jsonDir") + File.separator + "global.json");
             ValuesWsResponse.Builder builder = ValuesWsResponse.getDefaultInstance().toBuilder();
             JsonFormat.parser().merge(json, builder);
             ValuesWsResponse values = builder.build();
@@ -69,51 +67,6 @@ public class DefaultSettingsLoader implements SettingsLoader {
             throw new IllegalStateException("Failed to load server settings", e);
         }
     }
-
-    private String readFileContent(String fileName) {
-        File file = new File(fileName);
-        BufferedReader reader = null;
-        StringBuilder sbf = new StringBuilder();
-        try {
-            reader = new BufferedReader(new FileReader(file));
-            String tempStr;
-            while ((tempStr = reader.readLine()) != null) {
-                sbf.append(tempStr);
-            }
-            reader.close();
-            return sbf.toString();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e1) {
-                    e1.printStackTrace();
-                }
-            }
-        }
-        return sbf.toString();
-    }
-
-//  @Override
-//  public Map<String, String> load(@Nullable String componentKey) {
-//    String url = "api/settings/values.protobuf";
-//    Profiler profiler = Profiler.create(LOG);
-//    if (componentKey != null) {
-//      url += "?component=" + ScannerUtils.encodeForUrl(componentKey);
-//      profiler.startInfo("Load settings for component '" + componentKey + "'");
-//    } else {
-//      profiler.startInfo("Load global settings");
-//    }
-//    try (InputStream is = wsClient.call(new GetRequest(url)).contentStream()) {
-//      ValuesWsResponse values = ValuesWsResponse.parseFrom(is);
-//      profiler.stopInfo();
-//      return toMap(values.getSettingsList());
-//    } catch (IOException e) {
-//      throw new IllegalStateException("Failed to load server settings", e);
-//    }
-//  }
 
     @VisibleForTesting
     static Map<String, String> toMap(List<Setting> settingsList) {

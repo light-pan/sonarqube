@@ -20,10 +20,9 @@
 package org.sonar.scanner.rule;
 
 import com.google.protobuf.util.JsonFormat;
-import org.apache.commons.io.IOUtils;
 import org.sonar.api.rule.RuleKey;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
-import org.sonar.scanner.util.ScannerUtils;
+import org.sonar.scanner.bootstrap.GlobalProperties;
+import org.sonar.scanner.platform.LocalServer;
 import org.sonarqube.ws.Rules;
 import org.sonarqube.ws.Rules.Active;
 import org.sonarqube.ws.Rules.Active.Param;
@@ -31,7 +30,8 @@ import org.sonarqube.ws.Rules.ActiveList;
 import org.sonarqube.ws.Rules.Rule;
 import org.sonarqube.ws.Rules.SearchResponse;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -41,39 +41,11 @@ import static org.sonar.api.utils.DateUtils.dateToLong;
 import static org.sonar.api.utils.DateUtils.parseDateTime;
 
 public class DefaultActiveRulesLoader implements ActiveRulesLoader {
-    private static final String RULES_SEARCH_URL = "/api/rules/search.protobuf?f=repo,name,severity,lang,internalKey,templateKey,params,actives,createdAt&activation=true";
 
-    private final ScannerWsClient wsClient;
+    private final GlobalProperties globalProperties;
 
-    public DefaultActiveRulesLoader(ScannerWsClient wsClient) {
-        this.wsClient = wsClient;
-    }
-
-
-    public String readFileContent(String fileName) {
-        File file = new File(fileName);
-        BufferedReader reader = null;
-        StringBuffer sbf = new StringBuffer();
-        try {
-            reader = new BufferedReader(new FileReader(file));
-            String tempStr;
-            while ((tempStr = reader.readLine()) != null) {
-                sbf.append(tempStr);
-            }
-            reader.close();
-            return sbf.toString();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e1) {
-                    e1.printStackTrace();
-                }
-            }
-        }
-        return sbf.toString();
+    public DefaultActiveRulesLoader(GlobalProperties globalProperties) {
+        this.globalProperties = globalProperties;
     }
 
     @Override
@@ -83,7 +55,8 @@ public class DefaultActiveRulesLoader implements ActiveRulesLoader {
     public List<LoadedActiveRule> load(String language) {
         List<LoadedActiveRule> ruleList = new LinkedList<>();
         try {
-            String json = readFileContent("/Users/lightpan/code/java/json/" + language + ".json");
+            String fileName = globalProperties.property("sonar.jsonDir") + File.separator + language + ".json";
+            String json = LocalServer.readFileContent(fileName);
             SearchResponse.Builder builder = SearchResponse.getDefaultInstance().toBuilder();
             JsonFormat.parser().merge(json, builder);
             SearchResponse response = builder.build();
@@ -93,62 +66,6 @@ public class DefaultActiveRulesLoader implements ActiveRulesLoader {
             e.printStackTrace();
         }
         return ruleList;
-    }
-
-//  @Override
-//  public List<LoadedActiveRule> load(String qualityProfileKey) {
-//
-//    System.out.println("---------------qualityProfileKey:" + qualityProfileKey);
-//
-//    List<LoadedActiveRule> ruleList = new LinkedList<>();
-//    int page = 1;
-//    int pageSize = 500;
-//    int loaded = 0;
-//
-//    while (true) {
-//      GetRequest getRequest = new GetRequest(getUrl(qualityProfileKey, page, pageSize));
-//      SearchResponse response = loadFromStream(wsClient.call(getRequest).contentStream());
-//
-////      try {
-////        String json = JsonFormat.printer().print(response);
-////        File file =new File("/Users/lightpan/code/java/" + Math.random() + ".json");
-////        Writer out =new FileWriter(file);
-////        out.write(json);
-////        out.close();
-////
-////      } catch (IOException e) {
-////        e.printStackTrace();
-////      }
-//      List<LoadedActiveRule> pageRules = readPage(response);
-//      ruleList.addAll(pageRules);
-//      loaded += response.getPs();
-//
-//      if (response.getTotal() <= loaded) {
-//        break;
-//      }
-//      page++;
-//    }
-//
-//    return ruleList;
-//  }
-
-    private static String getUrl(String qualityProfileKey, int page, int pageSize) {
-        StringBuilder builder = new StringBuilder(1024);
-        builder.append(RULES_SEARCH_URL);
-        builder.append("&qprofile=").append(ScannerUtils.encodeForUrl(qualityProfileKey));
-        builder.append("&p=").append(page);
-        builder.append("&ps=").append(pageSize);
-        return builder.toString();
-    }
-
-    private static SearchResponse loadFromStream(InputStream is) {
-        try {
-            return SearchResponse.parseFrom(is);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to load quality profiles", e);
-        } finally {
-            IOUtils.closeQuietly(is);
-        }
     }
 
     private static List<LoadedActiveRule> readPage(SearchResponse response) {

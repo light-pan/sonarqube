@@ -20,29 +20,26 @@
 package org.sonar.scanner.rule;
 
 import com.google.protobuf.util.JsonFormat;
-import org.apache.commons.io.IOUtils;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
+import org.sonar.scanner.bootstrap.GlobalProperties;
+import org.sonar.scanner.platform.LocalServer;
 import org.sonarqube.ws.Rules.ListResponse;
 import org.sonarqube.ws.Rules.ListResponse.Rule;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 public class DefaultRulesLoader implements RulesLoader {
-  private static final String RULES_SEARCH_URL = "/api/rules/list.protobuf";
 
-  private final ScannerWsClient wsClient;
+  private final GlobalProperties globalProperties;
 
-  public DefaultRulesLoader(ScannerWsClient wsClient) {
-    this.wsClient = wsClient;
+  public DefaultRulesLoader(GlobalProperties globalProperties) {
+    this.globalProperties = globalProperties;
   }
 
   @Override
   public List<Rule> load() {
-//    GetRequest getRequest = new GetRequest(RULES_SEARCH_URL);
-//    ListResponse list = loadFromStream(wsClient.call(getRequest).contentStream());
-
-    String json = readFileContent("/Users/lightpan/code/java/json/listRules.json");
+    String json = LocalServer.readFileContent(globalProperties.property("sonar.jsonDir") + File.separator + "listRules.json");
     ListResponse list = loadFromLocal(json);
     return list.getRulesList();
   }
@@ -56,40 +53,4 @@ public class DefaultRulesLoader implements RulesLoader {
       throw new IllegalStateException("Unable to get rules", e);
     }
   }
-
-  private String readFileContent(String fileName) {
-    File file = new File(fileName);
-    BufferedReader reader = null;
-    StringBuffer sbf = new StringBuffer();
-    try {
-      reader = new BufferedReader(new FileReader(file));
-      String tempStr;
-      while ((tempStr = reader.readLine()) != null) {
-        sbf.append(tempStr);
-      }
-      reader.close();
-      return sbf.toString();
-    } catch (IOException e) {
-      e.printStackTrace();
-    } finally {
-      if (reader != null) {
-        try {
-          reader.close();
-        } catch (IOException e1) {
-          e1.printStackTrace();
-        }
-      }
-    }
-    return sbf.toString();
-  }
-  private static ListResponse loadFromStream(InputStream is) {
-    try {
-      return ListResponse.parseFrom(is);
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to get rules", e);
-    } finally {
-      IOUtils.closeQuietly(is);
-    }
-  }
-
 }

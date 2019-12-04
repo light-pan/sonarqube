@@ -50,31 +50,13 @@ public class ActiveRulesProvider extends ProviderAdapter {
 
   private static ActiveRules load(ActiveRulesLoader loader, ModuleQProfiles qProfiles) {
 
-//    Collection<String> qProfileKeys = getKeys(qProfiles);
     Collection<String> qProfileLanguages = getLanguage(qProfiles);
     Map<RuleKey, LoadedActiveRule> loadedRulesByKey = new HashMap<>();
-//    for (String qProfileKey : qProfileKeys) {
     for (String language : qProfileLanguages) {
       Collection<LoadedActiveRule> qProfileRules;
-//      qProfileRules = load(loader, qProfileKey);
       qProfileRules =loadCustom(loader, language);
 
       for (LoadedActiveRule r : qProfileRules) {
-
-//        if (language.equals("php")) {
-//          System.out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-//          System.out.println("ruleKey:" + r.getRuleKey().toString());
-//          System.out.println("severity:" + r.getSeverity());
-//          System.out.println("name:" + r.getName());
-//          System.out.println("language:" + r.getLanguage());
-//          System.out.println("params:" + r.getParams());
-//          System.out.println("createdAt:" + r.getCreatedAt());
-//          System.out.println("templateRuleKey:" + r.getTemplateRuleKey());
-//          System.out.println("internalKey:" + r.getInternalKey());
-//          System.out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-//          System.exit(0);
-//        }
-
         if (!loadedRulesByKey.containsKey(r.getRuleKey())) {
           loadedRulesByKey.put(r.getRuleKey(), r);
         }

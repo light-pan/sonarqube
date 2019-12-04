@@ -19,17 +19,15 @@
  */
 package org.sonar.scanner.bootstrap;
 
-import java.io.File;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.sonar.home.cache.FileCache;
-import org.sonar.scanner.WsTestUtil;
 import org.sonar.scanner.bootstrap.ScannerPluginInstaller.InstalledPlugin;
+
+import java.io.File;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
@@ -46,22 +44,12 @@ public class ScannerPluginInstallerTest {
   public ExpectedException thrown = ExpectedException.none();
 
   private FileCache fileCache = mock(FileCache.class);
-  private ScannerWsClient wsClient;
+  private GlobalProperties globalProps;
   private ScannerPluginPredicate pluginPredicate = mock(ScannerPluginPredicate.class);
 
   @Before
   public void setUp() {
-    wsClient = mock(ScannerWsClient.class);
-  }
-
-  @Test
-  public void listRemotePlugins() {
-    WsTestUtil.mockReader(wsClient, "/api/plugins/installed",
-      new InputStreamReader(this.getClass().getResourceAsStream("ScannerPluginInstallerTest/installed-plugins-ws.json"), StandardCharsets.UTF_8));
-    ScannerPluginInstaller underTest = new ScannerPluginInstaller(wsClient, fileCache, pluginPredicate);
-
-    InstalledPlugin[] remotePlugins = underTest.listInstalledPlugins();
-    assertThat(remotePlugins).extracting("key").containsOnly("scmgit", "java", "scmsvn");
+    globalProps = mock(GlobalProperties.class);
   }
 
   @Test
@@ -69,7 +57,7 @@ public class ScannerPluginInstallerTest {
     File pluginJar = temp.newFile();
     when(fileCache.get(eq("checkstyle-plugin.jar"), eq("fakemd5_1"), any(FileCache.Downloader.class))).thenReturn(pluginJar);
 
-    ScannerPluginInstaller underTest = new ScannerPluginInstaller(wsClient, fileCache, pluginPredicate);
+    ScannerPluginInstaller underTest = new ScannerPluginInstaller(fileCache, pluginPredicate,globalProps);
 
     InstalledPlugin remote = new InstalledPlugin();
     remote.key = "checkstyle";
@@ -78,13 +66,5 @@ public class ScannerPluginInstallerTest {
     File file = underTest.download(remote);
 
     assertThat(file).isEqualTo(pluginJar);
-  }
-
-  @Test
-  public void should_fail_to_get_plugin_index() {
-    WsTestUtil.mockException(wsClient, "/api/plugins/installed", new IllegalStateException());
-    thrown.expect(IllegalStateException.class);
-
-    new ScannerPluginInstaller(wsClient, fileCache, pluginPredicate).installRemotes();
   }
 }

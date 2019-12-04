@@ -19,10 +19,6 @@
  */
 package org.sonar.scanner.repository;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -33,6 +29,11 @@ import org.sonar.scanner.bootstrap.ScannerWsClient;
 import org.sonarqube.ws.QualityProfiles;
 import org.sonarqube.ws.QualityProfiles.SearchWsResponse.QualityProfile;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -42,7 +43,7 @@ public class DefaultQualityProfileLoaderTest {
 
   private ScannerWsClient wsClient = mock(ScannerWsClient.class);
   private MapSettings settings = new MapSettings();
-  private DefaultQualityProfileLoader underTest = new DefaultQualityProfileLoader(settings.asConfig(), wsClient);
+  private DefaultQualityProfileLoader underTest = new DefaultQualityProfileLoader(settings.asConfig());
 
   @Test
   public void load_gets_profiles_for_specified_project_and_profile_name() throws IOException {

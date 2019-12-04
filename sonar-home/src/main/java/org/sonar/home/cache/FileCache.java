@@ -73,11 +73,11 @@ public class FileCache {
     void download(String filename, File toFile) throws IOException;
   }
 
-  public File getFromLocal(String filename, String hash) {
+  public File getFromLocal(String filename, String hash, String jarDir) {
     File hashDir = hashDir(hash);
     File targetFile = new File(hashDir, filename);
     if (!targetFile.exists()) {
-      String filePath = "/Users/lightpan/code/java/jar/" + filename;
+      String filePath = jarDir + File.separator + filename;
       File file = new File(filePath);
       String realHash = hashes.of(file);
       if (!hash.equals(realHash)) {

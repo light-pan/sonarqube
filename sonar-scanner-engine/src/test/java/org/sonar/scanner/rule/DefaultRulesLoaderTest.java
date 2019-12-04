@@ -21,14 +21,14 @@ package org.sonar.scanner.rule;
 
 import com.google.common.io.ByteSource;
 import com.google.common.io.Resources;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.sonar.scanner.bootstrap.GlobalProperties;
+import org.sonarqube.ws.Rules.ListResponse.Rule;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.sonar.scanner.WsTestUtil;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
-import org.sonarqube.ws.Rules.ListResponse.Rule;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -39,20 +39,18 @@ public class DefaultRulesLoaderTest {
 
   @Test
   public void testParseServerResponse() throws IOException {
-    ScannerWsClient wsClient = mock(ScannerWsClient.class);
+    GlobalProperties globalProperties = mock(GlobalProperties.class);
     InputStream is = Resources.asByteSource(this.getClass().getResource("DefaultRulesLoaderTest/response.protobuf")).openBufferedStream();
-    WsTestUtil.mockStream(wsClient, is);
-    DefaultRulesLoader loader = new DefaultRulesLoader(wsClient);
+    DefaultRulesLoader loader = new DefaultRulesLoader(globalProperties);
     List<Rule> ruleList = loader.load();
     assertThat(ruleList).hasSize(318);
   }
 
   @Test
   public void testError() throws IOException {
-    ScannerWsClient wsClient = mock(ScannerWsClient.class);
+    GlobalProperties globalProperties = mock(GlobalProperties.class);
     InputStream is = ByteSource.wrap(new String("trash").getBytes()).openBufferedStream();
-    WsTestUtil.mockStream(wsClient, is);
-    DefaultRulesLoader loader = new DefaultRulesLoader(wsClient);
+    DefaultRulesLoader loader = new DefaultRulesLoader(globalProperties);
 
     exception.expect(IllegalStateException.class);
     exception.expectMessage("Unable to get rules");
