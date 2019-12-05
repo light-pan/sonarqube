@@ -21,17 +21,6 @@ package org.sonar.scanner.report;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Writer;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import org.apache.commons.io.FileUtils;
 import org.picocontainer.Startable;
@@ -41,7 +30,6 @@ import org.sonar.api.config.Configuration;
 import org.sonar.api.platform.Server;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.TempFolder;
-import org.sonar.api.utils.ZipUtils;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
@@ -53,6 +41,18 @@ import org.sonarqube.ws.WsCe;
 import org.sonarqube.ws.client.HttpException;
 import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsResponse;
+
+import javax.annotation.Nullable;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Writer;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.sonar.core.config.ScannerProperties.BRANCH_NAME;
 import static org.sonar.core.config.ScannerProperties.ORGANIZATION;
@@ -127,12 +127,13 @@ public class ReportPublisher implements Startable {
     // If this is a issues mode analysis then we should not upload reports
     String taskId = null;
     if (!analysisMode.isIssues()) {
-      File report = generateReportFile();
+//      File report = generateReportFile();
+      generateReportFile();
       if (shouldKeepReport()) {
         LOG.info("Analysis report generated in " + reportDir);
       }
       if (!analysisMode.isMediumTest()) {
-        taskId = upload(report);
+//        taskId = upload(report);
       }
     }
     logSuccess(taskId);
@@ -142,8 +143,9 @@ public class ReportPublisher implements Startable {
     return settings.getBoolean(KEEP_REPORT_PROP_KEY).orElse(false) || settings.getBoolean(VERBOSE_KEY).orElse(false);
   }
 
-  private File generateReportFile() {
-    try {
+//  private File generateReportFile() {
+  private void generateReportFile() {
+//    try {
       long startTime = System.currentTimeMillis();
       for (ReportPublisherStep publisher : publishers) {
         publisher.publish(writer);
@@ -151,15 +153,15 @@ public class ReportPublisher implements Startable {
       long stopTime = System.currentTimeMillis();
       LOG.info("Analysis report generated in {}ms, dir size={}", stopTime - startTime, FileUtils.byteCountToDisplaySize(FileUtils.sizeOfDirectory(reportDir.toFile())));
 
-      startTime = System.currentTimeMillis();
-      File reportZip = temp.newFile("scanner-report", ".zip");
-      ZipUtils.zipDir(reportDir.toFile(), reportZip);
-      stopTime = System.currentTimeMillis();
-      LOG.info("Analysis reports compressed in {}ms, zip size={}", stopTime - startTime, FileUtils.byteCountToDisplaySize(FileUtils.sizeOf(reportZip)));
-      return reportZip;
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to prepare analysis report", e);
-    }
+//      startTime = System.currentTimeMillis();
+//      File reportZip = temp.newFile("scanner-report", ".zip");
+//      ZipUtils.zipDir(reportDir.toFile(), reportZip);
+//      stopTime = System.currentTimeMillis();
+//      LOG.info("Analysis reports compressed in {}ms, zip size={}", stopTime - startTime, FileUtils.byteCountToDisplaySize(FileUtils.sizeOf(reportZip)));
+//      return reportZip;
+//    } catch (IOException e) {
+//      throw new IllegalStateException("Unable to prepare analysis report", e);
+//    }
   }
 
   /**
