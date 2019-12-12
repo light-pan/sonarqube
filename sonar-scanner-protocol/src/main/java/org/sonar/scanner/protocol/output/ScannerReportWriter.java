@@ -19,13 +19,15 @@
  */
 package org.sonar.scanner.protocol.output;
 
+import com.google.protobuf.util.JsonFormat;
+import org.sonar.core.util.ContextException;
+import org.sonar.core.util.Protobuf;
+
+import javax.annotation.concurrent.Immutable;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
-import javax.annotation.concurrent.Immutable;
-import org.sonar.core.util.ContextException;
-import org.sonar.core.util.Protobuf;
 
 @Immutable
 public class ScannerReportWriter {
@@ -76,7 +78,9 @@ public class ScannerReportWriter {
   public void appendComponentIssue(int componentRef, ScannerReport.Issue issue) {
     File file = fileStructure.fileFor(FileStructure.Domain.ISSUES, componentRef);
     try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file, true))) {
-      issue.writeDelimitedTo(out);
+//      issue.writeDelimitedTo(out);
+      String json = JsonFormat.printer().print(issue);
+      out.write(json.getBytes());
     } catch (Exception e) {
       throw ContextException.of("Unable to write issue", e).addContext("file", file);
     }

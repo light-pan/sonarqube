@@ -19,9 +19,8 @@
  */
 package org.sonar.scanner.protocol.output;
 
-import java.io.File;
-
 import javax.annotation.concurrent.Immutable;
+import java.io.File;
 
 /**
  * Structure of files in the zipped report
@@ -43,7 +42,8 @@ public class FileStructure {
     COVERAGE_DETAILS("coverage-details-", Domain.PB),
     SOURCE("source-", ".txt");
 
-    private static final String PB = ".pb";
+//    private static final String PB = ".pb";
+    private static final String PB = ".json";
     private final String filePrefix;
     private final String fileSuffix;
 
@@ -63,7 +63,8 @@ public class FileStructure {
   }
 
   public File metadataFile() {
-    return new File(dir, "metadata.pb");
+//    return new File(dir, "metadata.pb");
+    return new File(dir, "metadata.json");
   }
 
   public File analysisLog() {
@@ -71,7 +72,8 @@ public class FileStructure {
   }
 
   public File activeRules() {
-    return new File(dir, "activerules.pb");
+//    return new File(dir, "activerules.pb");
+    return new File(dir, "activerules.json");
   }
 
   public File fileFor(Domain domain, int componentRef) {
@@ -79,7 +81,8 @@ public class FileStructure {
   }
 
   public File contextProperties() {
-    return new File(dir, "context-props.pb");
+//    return new File(dir, "context-props.pb");
+    return new File(dir, "context-props.json");
   }
   
   public File root() {

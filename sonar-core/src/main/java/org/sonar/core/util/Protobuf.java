@@ -22,16 +22,14 @@ package org.sonar.core.util;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.function.Function;
-import javax.annotation.Nullable;
+import com.google.protobuf.util.JsonFormat;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
+
+import javax.annotation.Nullable;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.function.Function;
 
 /**
  * Utility to read and write Protocol Buffers messages
@@ -76,7 +74,9 @@ public class Protobuf {
     OutputStream out = null;
     try {
       out = new BufferedOutputStream(new FileOutputStream(toFile, false));
-      message.writeTo(out);
+//      message.writeTo(out);
+      String json = JsonFormat.printer().print(message);
+      out.write(json.getBytes());
     } catch (Exception e) {
       throw ContextException.of("Unable to write message", e).addContext("file", toFile);
     } finally {
@@ -112,9 +112,15 @@ public class Protobuf {
    */
   public static <MSG extends Message> void writeStream(Iterable<MSG> messages, OutputStream output) {
     try {
+      ArrayList<String> jsons =  new <String>ArrayList<String>();
       for (Message message : messages) {
-        message.writeDelimitedTo(output);
+//        message.writeDelimitedTo(output);
+        String json = JsonFormat.printer().print(message);
+        jsons.add(json);
       }
+      String json = StringUtils.join(jsons.toArray(), ",");
+      json = "[" + json + "]";
+      output.write(json.getBytes());
     } catch (Exception e) {
       throw ContextException.of("Unable to write messages", e);
     }
