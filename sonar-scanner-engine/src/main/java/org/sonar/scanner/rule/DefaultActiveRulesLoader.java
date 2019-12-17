@@ -23,12 +23,9 @@ import com.google.protobuf.util.JsonFormat;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.scanner.bootstrap.GlobalProperties;
 import org.sonar.scanner.platform.LocalServer;
-import org.sonarqube.ws.Rules;
-import org.sonarqube.ws.Rules.Active;
-import org.sonarqube.ws.Rules.Active.Param;
-import org.sonarqube.ws.Rules.ActiveList;
-import org.sonarqube.ws.Rules.Rule;
-import org.sonarqube.ws.Rules.SearchResponse;
+import org.sonarqube.ws.CustomRules;
+import org.sonarqube.ws.CustomRules.Rule;
+import org.sonarqube.ws.CustomRules.SearchResponse;
 
 import java.io.File;
 import java.io.IOException;
@@ -70,20 +67,14 @@ public class DefaultActiveRulesLoader implements ActiveRulesLoader {
 
     private static List<LoadedActiveRule> readPage(SearchResponse response) {
         List<LoadedActiveRule> loadedRules = new LinkedList<>();
-
         List<Rule> rulesList = response.getRulesList();
-        Map<String, ActiveList> actives = response.getActives().getActives();
-
         for (Rule r : rulesList) {
-            ActiveList activeList = actives.get(r.getKey());
-            Active active = activeList.getActiveList(0);
-
             LoadedActiveRule loadedRule = new LoadedActiveRule();
 
             loadedRule.setRuleKey(RuleKey.parse(r.getKey()));
             loadedRule.setName(r.getName());
-            loadedRule.setSeverity(active.getSeverity());
-            loadedRule.setCreatedAt(dateToLong(parseDateTime(active.getCreatedAt())));
+            loadedRule.setSeverity(r.getSeverity());
+            loadedRule.setCreatedAt(dateToLong(parseDateTime(r.getCreatedAt())));
             loadedRule.setLanguage(r.getLang());
             loadedRule.setInternalKey(r.getInternalKey());
             if (r.hasTemplateKey()) {
@@ -93,14 +84,10 @@ public class DefaultActiveRulesLoader implements ActiveRulesLoader {
 
             Map<String, String> params = new HashMap<>();
 
-            for (Rules.Rule.Param param : r.getParams().getParamsList()) {
+            for (CustomRules.Rule.Param param : r.getParams().getParamsList()) {
                 params.put(param.getKey(), param.getDefaultValue());
             }
 
-            // overrides defaultValue if the key is the same
-            for (Param param : active.getParamsList()) {
-                params.put(param.getKey(), param.getValue());
-            }
             loadedRule.setParams(params);
             loadedRules.add(loadedRule);
         }
