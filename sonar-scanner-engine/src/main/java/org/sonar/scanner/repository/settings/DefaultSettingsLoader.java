@@ -20,20 +20,14 @@
 package org.sonar.scanner.repository.settings;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.util.JsonFormat;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.log.Profiler;
-import org.sonar.scanner.bootstrap.GlobalProperties;
-import org.sonar.scanner.platform.LocalServer;
 import org.sonarqube.ws.Settings.FieldValues.Value;
 import org.sonarqube.ws.Settings.Setting;
-import org.sonarqube.ws.Settings.ValuesWsResponse;
 
 import javax.annotation.Nullable;
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,11 +36,7 @@ import java.util.stream.Collectors;
 
 public class DefaultSettingsLoader implements SettingsLoader {
 
-    private GlobalProperties globalProps;
     private static final Logger LOG = Loggers.get(DefaultSettingsLoader.class);
-    public DefaultSettingsLoader(GlobalProperties globalProps) {
-        this.globalProps = globalProps;
-    }
 
     @Override
     public Map<String, String> load(@Nullable String componentKey) {
@@ -56,16 +46,10 @@ public class DefaultSettingsLoader implements SettingsLoader {
         } else {
             profiler.startInfo("Load global settings");
         }
-        try  {
-            String json = LocalServer.readFileContent(globalProps.property("sonar.jsonDir") + File.separator + "global.json");
-            ValuesWsResponse.Builder builder = ValuesWsResponse.getDefaultInstance().toBuilder();
-            JsonFormat.parser().merge(json, builder);
-            ValuesWsResponse values = builder.build();
-            profiler.stopInfo();
-            return toMap(values.getSettingsList());
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to load server settings", e);
-        }
+        profiler.stopInfo();
+        Map<String, String> result = new LinkedHashMap<>();
+        result.put("sonar.core.id", "ci_sonarqube");
+        return result;
     }
 
     @VisibleForTesting
