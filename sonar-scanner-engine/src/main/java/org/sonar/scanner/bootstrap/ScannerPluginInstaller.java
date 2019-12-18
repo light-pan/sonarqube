@@ -31,10 +31,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Downloads the plugins installed on server and stores them in a local user cache
@@ -103,6 +100,20 @@ public class ScannerPluginInstaller implements PluginInstaller {
     }
 
     profiler.stopInfo();
+
+    String language = globalProps.property("sonar.ci.language");
+
+    if (language != null && !language.equals("")) {
+      ArrayList<InstalledPlugin> filterInstalledPlugins = new ArrayList<>();
+      String[] languages = language.split(",");
+      List<String> languageList = Arrays.asList(languages);
+      for (InstalledPlugin plugin :installedPlugins.plugins) {
+        if (languageList.contains(plugin.language)){
+          filterInstalledPlugins.add(plugin);
+        }
+      }
+      return filterInstalledPlugins.toArray(new InstalledPlugin[filterInstalledPlugins.size()]);
+    }
     return installedPlugins.plugins;
   }
 
@@ -113,6 +124,7 @@ public class ScannerPluginInstaller implements PluginInstaller {
   static class InstalledPlugin {
     String key;
     String hash;
+    String language;
     String filename;
     long updatedAt;
   }

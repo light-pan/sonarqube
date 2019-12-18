@@ -28,10 +28,7 @@ import org.sonarqube.ws.QualityProfiles.SearchWsResponse.QualityProfile;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BinaryOperator;
 
 import static java.util.function.Function.identity;
@@ -72,6 +69,20 @@ public class DefaultQualityProfileLoader implements QualityProfileLoader {
     List<QualityProfile> profilesList = profiles.getProfilesList();
     Map<String, QualityProfile> result =  profilesList.stream()
             .collect(toMap(QualityProfile::getLanguage, identity(), throwingMerger(), LinkedHashMap::new));
+
+    if(settings.get("sonar.ci.language").isPresent()) {
+      String language = settings.get("sonar.ci.language").get();
+      List<QualityProfile> filterQualityProfiles = new ArrayList<>();
+      String[] languages = language.split(",");
+      List<String> languageList = Arrays.asList(languages);
+      for (QualityProfile profile :result.values()) {
+        if (languageList.contains(profile.getLanguage())){
+          filterQualityProfiles.add(profile);
+        }
+      }
+      return filterQualityProfiles;
+    }
+
     return new ArrayList<>(result.values());
   }
 
