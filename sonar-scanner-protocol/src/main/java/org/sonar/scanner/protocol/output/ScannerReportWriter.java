@@ -79,25 +79,28 @@ public class ScannerReportWriter {
     File file = fileStructure.fileFor(FileStructure.Domain.ISSUES, componentRef);
     BufferedReader reader = null;
     StringBuilder sbf = new StringBuilder();
-    try {
-      reader = new BufferedReader(new FileReader(file));
-      String tempStr;
-      while ((tempStr = reader.readLine()) != null) {
-        sbf.append(tempStr);
-      }
-      reader.close();
-    } catch (IOException e) {
-      e.printStackTrace();
-    } finally {
-      if (reader != null) {
-        try {
-          reader.close();
-        } catch (IOException e1) {
-          e1.printStackTrace();
+    String content = "";
+    if (file.exists()) {
+      try {
+        reader = new BufferedReader(new FileReader(file));
+        String tempStr;
+        while ((tempStr = reader.readLine()) != null) {
+          sbf.append(tempStr);
+        }
+        reader.close();
+        content = sbf.toString();
+      } catch (IOException e) {
+        e.printStackTrace();
+      } finally {
+        if (reader != null) {
+          try {
+            reader.close();
+          } catch (IOException e1) {
+            e1.printStackTrace();
+          }
         }
       }
     }
-    String content = sbf.toString();
     if (!content.equals("")) {
       content = content.substring(1,content.length() - 1);
     }
