@@ -24,10 +24,10 @@ import org.sonar.core.util.ContextException;
 import org.sonar.core.util.Protobuf;
 
 import javax.annotation.concurrent.Immutable;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 @Immutable
 public class ScannerReportWriter {
@@ -77,10 +77,43 @@ public class ScannerReportWriter {
 
   public void appendComponentIssue(int componentRef, ScannerReport.Issue issue) {
     File file = fileStructure.fileFor(FileStructure.Domain.ISSUES, componentRef);
-    try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file, true))) {
+    BufferedReader reader = null;
+    StringBuilder sbf = new StringBuilder();
+    try {
+      reader = new BufferedReader(new FileReader(file));
+      String tempStr;
+      while ((tempStr = reader.readLine()) != null) {
+        sbf.append(tempStr);
+      }
+      reader.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    } finally {
+      if (reader != null) {
+        try {
+          reader.close();
+        } catch (IOException e1) {
+          e1.printStackTrace();
+        }
+      }
+    }
+    String content = sbf.toString();
+    if (!content.equals("")) {
+      content = content.substring(1,content.length() - 1);
+    }
+    try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file, false))) {
 //      issue.writeDelimitedTo(out);
+      List<String> list = new ArrayList<>();
+      if (!content.equals("")) {
+        String[] strs = content.split(",");
+        list = Arrays.asList(strs);
+      }
+      List<String> arrList = new ArrayList<>(list);
       String json = JsonFormat.printer().print(issue);
-      out.write(json.getBytes());
+      arrList.add(json);
+      content = String.join(",", arrList);
+      content = "[" + content + "]";
+      out.write(content.getBytes());
     } catch (Exception e) {
       throw ContextException.of("Unable to write issue", e).addContext("file", file);
     }

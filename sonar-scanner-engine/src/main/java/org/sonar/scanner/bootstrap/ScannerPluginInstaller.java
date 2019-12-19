@@ -108,7 +108,7 @@ public class ScannerPluginInstaller implements PluginInstaller {
       String[] languages = language.split(",");
       List<String> languageList = Arrays.asList(languages);
       for (InstalledPlugin plugin :installedPlugins.plugins) {
-        if (languageList.contains(plugin.language)){
+        if (languageList.contains(plugin.language) || plugin.language.equals("git") || plugin.language.equals("svn")){
           filterInstalledPlugins.add(plugin);
         }
       }
