@@ -108,7 +108,6 @@ public class DefaultActiveRulesLoader implements ActiveRulesLoader {
             loadedRule.setParams(params);
             loadedRules.add(loadedRule);
         }
-        System.out.println();
         return loadedRules;
     }
 }
