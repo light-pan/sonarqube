@@ -19,7 +19,10 @@
  */
 package org.sonar.scanner.rule;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.util.JsonFormat;
+import org.apache.commons.lang.StringUtils;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.scanner.bootstrap.GlobalProperties;
 import org.sonar.scanner.platform.LocalServer;
@@ -29,10 +32,8 @@ import org.sonarqube.ws.CustomRules.SearchResponse;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.lang.reflect.Type;
+import java.util.*;
 
 import static org.sonar.api.utils.DateUtils.dateToLong;
 import static org.sonar.api.utils.DateUtils.parseDateTime;
@@ -57,7 +58,20 @@ public class DefaultActiveRulesLoader implements ActiveRulesLoader {
             SearchResponse.Builder builder = SearchResponse.getDefaultInstance().toBuilder();
             JsonFormat.parser().merge(json, builder);
             SearchResponse response = builder.build();
-            List<LoadedActiveRule> pageRules = readPage(response);
+
+            String key = "sonar.ci.rules." + language;
+            if (globalProperties.property(key) == null) {
+                String customRules = globalProperties.property("sonar.ci.rules");
+                Gson gson = new Gson();
+                Type type = new TypeToken<Map<String,String[]>>() {}.getType();
+                Map<String,String[]> map = gson.fromJson(customRules, type);
+                for(Map.Entry<String, String[]> entry : map.entrySet()){
+                    globalProperties.properties().put("sonar.ci.rules." + entry.getKey(), StringUtils.join(entry.getValue(), ","));
+                }
+            }
+            String[] rules = globalProperties.property(key).split(",");
+
+            List<LoadedActiveRule> pageRules = readPage(response,rules);
             ruleList.addAll(pageRules);
         } catch (IOException e) {
             e.printStackTrace();
@@ -65,12 +79,18 @@ public class DefaultActiveRulesLoader implements ActiveRulesLoader {
         return ruleList;
     }
 
-    private static List<LoadedActiveRule> readPage(SearchResponse response) {
+    private static List<LoadedActiveRule> readPage(SearchResponse response, String[] rules) {
         List<LoadedActiveRule> loadedRules = new LinkedList<>();
         List<Rule> rulesList = response.getRulesList();
-        for (Rule r : rulesList) {
-            LoadedActiveRule loadedRule = new LoadedActiveRule();
 
+        List<String> list= Arrays.asList(rules);
+
+        for (Rule r : rulesList) {
+
+            if (!list.contains(r.getKey())) {
+                continue;
+            }
+            LoadedActiveRule loadedRule = new LoadedActiveRule();
             loadedRule.setRuleKey(RuleKey.parse(r.getKey()));
             loadedRule.setName(r.getName());
             loadedRule.setSeverity(r.getSeverity());
@@ -81,17 +101,14 @@ public class DefaultActiveRulesLoader implements ActiveRulesLoader {
                 RuleKey templateRuleKey = RuleKey.parse(r.getTemplateKey());
                 loadedRule.setTemplateRuleKey(templateRuleKey.rule());
             }
-
             Map<String, String> params = new HashMap<>();
-
             for (CustomRules.Rule.Param param : r.getParams().getParamsList()) {
                 params.put(param.getKey(), param.getDefaultValue());
             }
-
             loadedRule.setParams(params);
             loadedRules.add(loadedRule);
         }
-
+        System.out.println();
         return loadedRules;
     }
 }
