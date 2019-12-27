@@ -21,6 +21,7 @@ package org.sonar.scanner.report;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
+import com.google.gson.JsonObject;
 import okhttp3.HttpUrl;
 import org.apache.commons.io.FileUtils;
 import org.picocontainer.Startable;
@@ -152,6 +153,12 @@ public class ReportPublisher implements Startable {
       }
       long stopTime = System.currentTimeMillis();
       LOG.info("Analysis report generated in {}ms, dir size={}", stopTime - startTime, FileUtils.byteCountToDisplaySize(FileUtils.sizeOfDirectory(reportDir.toFile())));
+
+    if(!settings.get("sonar.jsonDir").isPresent()) {
+      throw new IllegalStateException("Failed to load quality profiles");
+    }
+    JsonObject reJsonObject = AnalyzeReport.readReport(reportDir.toString(), settings.get("sonar.jsonDir").get());
+    AnalyzeReport.createJsonFile(reJsonObject.toString(),settings.get("sonar.jsonDir").get(),"scanner-report");
 
 //      startTime = System.currentTimeMillis();
 //      File reportZip = temp.newFile("scanner-report", ".zip");
