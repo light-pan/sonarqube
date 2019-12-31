@@ -59,17 +59,22 @@ public class DefaultActiveRulesLoader implements ActiveRulesLoader {
             JsonFormat.parser().merge(json, builder);
             SearchResponse response = builder.build();
 
-            String key = "sonar.ci.rules." + language;
-            if (globalProperties.property(key) == null) {
-                String customRules = globalProperties.property("sonar.ci.rules");
-                Gson gson = new Gson();
-                Type type = new TypeToken<Map<String,String[]>>() {}.getType();
-                Map<String,String[]> map = gson.fromJson(customRules, type);
-                for(Map.Entry<String, String[]> entry : map.entrySet()){
-                    globalProperties.properties().put("sonar.ci.rules." + entry.getKey(), StringUtils.join(entry.getValue(), ","));
+            String[] rules = null;
+            if (!globalProperties.property("sonar.ci.rules").isEmpty()) {
+                String key = "sonar.ci.rules." + language;
+                if (globalProperties.property(key) == null) {
+                    String customRules = globalProperties.property("sonar.ci.rules");
+                    Gson gson = new Gson();
+                    Type type = new TypeToken<Map<String,String[]>>() {}.getType();
+                    Map<String,String[]> map = gson.fromJson(customRules, type);
+                    for(Map.Entry<String, String[]> entry : map.entrySet()){
+                        globalProperties.properties().put("sonar.ci.rules." + entry.getKey(), StringUtils.join(entry.getValue(), ","));
+                    }
                 }
+                rules = globalProperties.property(key).split(",");
+            } else {
+                rules = new String[0];
             }
-            String[] rules = globalProperties.property(key).split(",");
 
             List<LoadedActiveRule> pageRules = readPage(response,rules);
             ruleList.addAll(pageRules);
@@ -87,9 +92,12 @@ public class DefaultActiveRulesLoader implements ActiveRulesLoader {
 
         for (Rule r : rulesList) {
 
-            if (!list.contains(r.getKey())) {
-                continue;
+            if (rules.length != 0) {
+                if (!list.contains(r.getKey())) {
+                    continue;
+                }
             }
+
             LoadedActiveRule loadedRule = new LoadedActiveRule();
             loadedRule.setRuleKey(RuleKey.parse(r.getKey()));
             loadedRule.setName(r.getName());
